@@ -1,0 +1,42 @@
+{
+    "name": "shelfwood/laravel-n8n",
+    "description": "Tag-based n8n webhook integration for Laravel — fire events, auto-dispatch to matching n8n workflows",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Joris Shelfwood",
+            "email": "joris@shelfwood.co"
+        }
+    ],
+    "require": {
+        "php": "^8.3",
+        "illuminate/contracts": "^12.0|^13.0",
+        "illuminate/http": "^12.0|^13.0",
+        "illuminate/queue": "^12.0|^13.0",
+        "illuminate/support": "^12.0|^13.0"
+    },
+    "require-dev": {
+        "orchestra/testbench": "^10.0",
+        "pestphp/pest": "^4.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Shelfwood\\N8n\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Shelfwood\\N8n\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Shelfwood\\N8n\\N8nServiceProvider"
+            ]
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}

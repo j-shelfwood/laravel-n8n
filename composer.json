@@ -3,6 +3,8 @@
     "description": "Tag-based n8n webhook integration for Laravel — fire events, auto-dispatch to matching n8n workflows",
     "type": "library",
     "license": "MIT",
+    "keywords": ["laravel", "n8n", "webhooks", "events", "automation", "filament"],
+    "homepage": "https://laravel-n8n.shelfwood.co",
     "authors": [
         {
             "name": "Joris Shelfwood",
@@ -20,6 +22,9 @@
         "orchestra/testbench": "^10.0",
         "pestphp/pest": "^4.0"
     },
+    "suggest": {
+        "filament/filament": "Required for the N8nStatus admin page (^5.0)"
+    },
     "autoload": {
         "psr-4": {
             "Shelfwood\\N8n\\": "src/"
@@ -35,6 +40,12 @@
             "providers": [
                 "Shelfwood\\N8n\\N8nServiceProvider"
             ]
+        }
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
         }
     },
     "minimum-stability": "stable",

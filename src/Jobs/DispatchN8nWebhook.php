@@ -14,18 +14,11 @@ use Throwable;
  * Dispatches an event payload to all n8n workflows matching the event's tags.
  *
  * Fire-and-forget: the app doesn't depend on n8n being available. If n8n is
- * down, the job retries 3 times then logs the failure — no user impact.
+ * down, the job logs at debug level and completes — no retries, no errors.
  */
 class DispatchN8nWebhook implements ShouldQueue
 {
     use InteractsWithQueue, Queueable, SerializesModels;
-
-    /** @var int Maximum number of attempts */
-    public int $tries = 3;
-
-    /** @var int Seconds between retries */
-    public int $backoff = 5;
-
     /**
      * @param  array<string, mixed>  $payload  Event data to send
      * @param  array<int, string>  $tags  n8n workflow tags to target
@@ -37,28 +30,36 @@ class DispatchN8nWebhook implements ShouldQueue
 
     /**
      * Find matching n8n workflows and POST the payload to their webhooks.
+     *
+     * Catches all exceptions so n8n downtime never produces error logs or retries.
+     * This is fire-and-forget — the app must never depend on n8n availability.
      */
     public function handle(N8nService $n8nService): void
     {
-        $webhookUrls = $n8nService->getWebhookUrlsByTags($this->tags);
+        try {
+            $webhookUrls = $n8nService->getWebhookUrlsByTags($this->tags);
+        } catch (Throwable $e) {
+            Log::debug('n8n unreachable, skipping webhook dispatch', [
+                'tags' => $this->tags,
+                'error' => $e->getMessage(),
+            ]);
+
+            return;
+        }
 
         if (empty($webhookUrls)) {
             return;
         }
 
         foreach ($webhookUrls as $url) {
-            $n8nService->sendWebhook($url, $this->payload);
+            try {
+                $n8nService->sendWebhook($url, $this->payload);
+            } catch (Throwable $e) {
+                Log::debug('n8n webhook delivery failed', [
+                    'url' => $url,
+                    'error' => $e->getMessage(),
+                ]);
+            }
         }
-    }
-
-    /**
-     * Handle permanent failure after all retries exhausted.
-     */
-    public function failed(Throwable $exception): void
-    {
-        Log::warning('n8n webhook dispatch failed permanently', [
-            'tags' => $this->tags,
-            'error' => $exception->getMessage(),
-        ]);
     }
 }

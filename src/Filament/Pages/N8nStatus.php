@@ -6,6 +6,7 @@ use Filament\Pages\Page;
 use Illuminate\Support\Facades\File;
 use ReflectionClass;
 use Shelfwood\N8n\Services\N8nService;
+use Shelfwood\N8n\Support\Psr4ClassResolver;
 use Shelfwood\N8n\Traits\HasN8nTrigger;
 
 /**
@@ -112,18 +113,7 @@ class N8nStatus extends Page
      */
     private function resolveClassName(string $path): ?string
     {
-        $relativePath = str_replace(base_path().'/', '', $path);
-        $relativePath = str_replace('.php', '', $relativePath);
-
-        if (str_starts_with($relativePath, 'app/')) {
-            return 'App\\'.str_replace('/', '\\', substr($relativePath, 4));
-        }
-
-        if (str_starts_with($relativePath, 'modules/')) {
-            return 'Modules\\'.str_replace('/', '\\', substr($relativePath, 8));
-        }
-
-        return null;
+        return Psr4ClassResolver::resolve($path, base_path());
     }
 
     /**

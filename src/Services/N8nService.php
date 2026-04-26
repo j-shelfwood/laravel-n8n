@@ -2,6 +2,7 @@
 
 namespace Shelfwood\N8n\Services;
 
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -14,11 +15,47 @@ use Illuminate\Support\Facades\Log;
 class N8nService
 {
     /**
+     * Cache key used for the workflow list.
+     */
+    private const WORKFLOWS_CACHE_KEY = 'n8n.workflows';
+
+    /**
      * Get all workflows from the n8n instance.
+     *
+     * Cached for `n8n.workflows.cache_ttl` seconds (default 60). Set the
+     * config value to 0 to bypass the cache — useful in dev or when running
+     * inside the queue worker that just renamed a workflow. Cache is shared
+     * across all dispatch jobs so high-volume event traffic only hits the
+     * n8n REST API once per TTL window.
      *
      * @return array<int, array<string, mixed>>
      */
     public function getWorkflows(): array
+    {
+        $ttl = (int) config('n8n.workflows.cache_ttl', 60);
+
+        if ($ttl <= 0) {
+            return $this->fetchWorkflows();
+        }
+
+        return Cache::remember(self::WORKFLOWS_CACHE_KEY, $ttl, fn () => $this->fetchWorkflows());
+    }
+
+    /**
+     * Forget the cached workflow list. Call after issuing changes through
+     * the n8n API or when a webhook 404 indicates the cached path is stale.
+     */
+    public function flushWorkflowsCache(): void
+    {
+        Cache::forget(self::WORKFLOWS_CACHE_KEY);
+    }
+
+    /**
+     * Fetch the workflow list directly from the n8n REST API (no cache).
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function fetchWorkflows(): array
     {
         $response = $this->apiRequest('get', 'api/v1/workflows');
 

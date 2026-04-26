@@ -52,10 +52,7 @@ trait HasN8nTrigger
      */
     protected function generateDefaultN8nTags(): array
     {
-        $className = class_basename($this);
-        $tagSlug = Str::kebab($className);
-
-        return ['app:'.$tagSlug];
+        return [self::tagPrefix().Str::kebab(class_basename($this))];
     }
 
     /**
@@ -65,10 +62,25 @@ trait HasN8nTrigger
      */
     public static function generateDefaultN8nTagsForClass(string $class): array
     {
-        $className = class_basename($class);
-        $tagSlug = Str::kebab($className);
+        return [self::tagPrefix().Str::kebab(class_basename($class))];
+    }
 
-        return ['app:'.$tagSlug];
+    /**
+     * Resolve the configured tag prefix.
+     *
+     * Defaults to `app:` when the package config is unavailable so events
+     * created outside a Laravel container (e.g. plain unit tests) still
+     * generate stable tags.
+     */
+    private static function tagPrefix(): string
+    {
+        if (! function_exists('config')) {
+            return 'app:';
+        }
+
+        $prefix = config('n8n.tag_prefix', 'app:');
+
+        return is_string($prefix) ? $prefix : 'app:';
     }
 
     /**

@@ -95,6 +95,32 @@
             </div>
         </x-filament::section>
 
+        @if ($isConnected && ! empty($orphanedWorkflows))
+            <x-filament::section>
+                <x-slot name="heading">Orphaned workflows</x-slot>
+                <x-slot name="description">Active n8n workflows tagged with the package prefix that match no discovered event class. Usually a sign of an event rename or a workflow listening to a tag nothing fires.</x-slot>
+
+                <div class="space-y-3">
+                    @foreach ($orphanedWorkflows as $workflow)
+                        <div class="flex items-center justify-between rounded border border-amber-300 bg-amber-50 p-3 dark:border-amber-700 dark:bg-amber-950">
+                            <div>
+                                <div class="font-medium">{{ $workflow['name'] }}</div>
+                                <div class="text-xs text-gray-600 dark:text-gray-400">
+                                    Unmatched tags:
+                                    @foreach ($workflow['unmatched_tags'] as $tag)
+                                        <code class="rounded bg-white px-1.5 py-0.5 dark:bg-gray-800">{{ $tag }}</code>
+                                    @endforeach
+                                </div>
+                            </div>
+                            <x-filament::link :href="$workflow['url']" target="_blank" rel="noopener" icon="heroicon-o-arrow-top-right-on-square">
+                                Open in n8n
+                            </x-filament::link>
+                        </div>
+                    @endforeach
+                </div>
+            </x-filament::section>
+        @endif
+
         @if (! $isConnected)
             <x-filament::section>
                 <div class="text-center">

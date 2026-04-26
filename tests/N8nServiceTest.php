@@ -1,7 +1,13 @@
 <?php
 
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Shelfwood\N8n\Services\N8nService;
+
+beforeEach(function () {
+    Cache::flush();
+    config(['n8n.workflows.cache_ttl' => 60]);
+});
 
 test('getWebhookUrlsByTags returns URLs for matching active workflows', function () {
     config(['n8n.api.url' => 'https://n8n.test']);
@@ -123,4 +129,54 @@ test('findWorkflowsByTag filters by tag name', function () {
 
     expect($matches)->toHaveCount(1)
         ->and($matches[0]['id'])->toBe('1');
+});
+
+test('getWorkflows caches the workflow list across calls', function () {
+    config(['n8n.api.url' => 'https://n8n.test', 'n8n.workflows.cache_ttl' => 60]);
+
+    Http::fake([
+        'n8n.test/api/v1/workflows' => Http::sequence()
+            ->push(['data' => [['id' => '1', 'name' => 'A', 'active' => true]]])
+            ->push(['data' => [['id' => '2', 'name' => 'B', 'active' => true]]]),
+    ]);
+
+    $service = new N8nService;
+
+    expect($service->getWorkflows()[0]['id'])->toBe('1');
+    expect($service->getWorkflows()[0]['id'])->toBe('1');
+
+    Http::assertSentCount(1);
+});
+
+test('getWorkflows bypasses cache when cache_ttl is 0', function () {
+    config(['n8n.api.url' => 'https://n8n.test', 'n8n.workflows.cache_ttl' => 0]);
+
+    Http::fake([
+        'n8n.test/api/v1/workflows' => Http::sequence()
+            ->push(['data' => [['id' => '1', 'name' => 'A', 'active' => true]]])
+            ->push(['data' => [['id' => '2', 'name' => 'B', 'active' => true]]]),
+    ]);
+
+    $service = new N8nService;
+    $service->getWorkflows();
+    $service->getWorkflows();
+
+    Http::assertSentCount(2);
+});
+
+test('flushWorkflowsCache forces a refetch on next call', function () {
+    config(['n8n.api.url' => 'https://n8n.test', 'n8n.workflows.cache_ttl' => 60]);
+
+    Http::fake([
+        'n8n.test/api/v1/workflows' => Http::sequence()
+            ->push(['data' => [['id' => '1', 'active' => true]]])
+            ->push(['data' => [['id' => '2', 'active' => true]]]),
+    ]);
+
+    $service = new N8nService;
+    $service->getWorkflows();
+    $service->flushWorkflowsCache();
+    $service->getWorkflows();
+
+    Http::assertSentCount(2);
 });

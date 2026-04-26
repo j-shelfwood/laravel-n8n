@@ -19,6 +19,21 @@ use Throwable;
 class DispatchN8nWebhook implements ShouldQueue
 {
     use InteractsWithQueue, Queueable, SerializesModels;
+
+    /**
+     * Maximum retry attempts before the job is marked as permanently failed.
+     *
+     * Conservative default — n8n webhooks are usually idempotent on the
+     * receiving side (workflows dedupe by payload), so a small retry budget
+     * is safe. Override per-application by extending the job.
+     */
+    public int $tries = 3;
+
+    /**
+     * Backoff in seconds between retry attempts.
+     */
+    public int $backoff = 5;
+
     /**
      * @param  array<string, mixed>  $payload  Event data to send
      * @param  array<int, string>  $tags  n8n workflow tags to target
@@ -27,6 +42,22 @@ class DispatchN8nWebhook implements ShouldQueue
         public array $payload,
         public array $tags,
     ) {}
+
+    /**
+     * Permanent-failure hook fired after `$tries` exhausted.
+     *
+     * Logs at warning level so operators see the dispatch was lost. The
+     * package never throws into the queue worker — `handle()` already swallows
+     * connection errors — so this only fires when an explicit retryable
+     * exception was rethrown by a subclass.
+     */
+    public function failed(\Throwable $exception): void
+    {
+        \Illuminate\Support\Facades\Log::warning('n8n webhook dispatch failed permanently', [
+            'tags' => $this->tags,
+            'error' => $exception->getMessage(),
+        ]);
+    }
 
     /**
      * Find matching n8n workflows and POST the payload to their webhooks.

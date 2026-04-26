@@ -36,6 +36,15 @@ class N8nStatus extends Page
     public string $connectionError = '';
 
     /**
+     * Active n8n workflows whose tags do not match any discovered event class.
+     * Surfaced separately so operators can spot drift after a rename or after
+     * deleting an event class without disabling the upstream n8n workflow.
+     *
+     * @var array<int, array<string, mixed>>
+     */
+    public array $orphanedWorkflows = [];
+
+    /**
      * Return the navigation group for the sidebar.
      */
     public static function getNavigationGroup(): string|\UnitEnum|null
@@ -58,6 +67,67 @@ class N8nStatus extends Page
 
         $this->events = $this->discoverEvents();
         $this->matchEventsToWorkflows();
+        $this->collectOrphanedWorkflows();
+    }
+
+    /**
+     * Identify active workflows whose tags carry the configured prefix but
+     * match no discovered event class. Catches drift after an event rename
+     * or deletion left an upstream workflow listening to a tag nothing fires.
+     *
+     * Restricts to workflows with at least one tag starting with the package
+     * prefix so unrelated workflows (manually-tagged ones) are not flagged.
+     */
+    private function collectOrphanedWorkflows(): void
+    {
+        if (! $this->isConnected) {
+            return;
+        }
+
+        $eventTags = [];
+        foreach ($this->events as $event) {
+            foreach ($event['tags'] as $tag) {
+                $eventTags[$tag] = true;
+            }
+        }
+
+        $prefix = (string) config('n8n.tag_prefix', 'app:');
+        $orphaned = [];
+
+        foreach ($this->workflows as $workflow) {
+            if (! ($workflow['active'] ?? false)) {
+                continue;
+            }
+
+            $workflowTags = array_map(
+                fn (mixed $tag): string => is_array($tag) ? (string) ($tag['name'] ?? '') : (string) $tag,
+                $workflow['tags'] ?? []
+            );
+
+            $appTags = array_values(array_filter(
+                $workflowTags,
+                fn (string $tag): bool => $tag !== '' && str_starts_with($tag, $prefix),
+            ));
+
+            if ($appTags === []) {
+                continue;
+            }
+
+            $unmatched = array_values(array_diff($appTags, array_keys($eventTags)));
+
+            if ($unmatched === []) {
+                continue;
+            }
+
+            $orphaned[] = [
+                'id' => $workflow['id'] ?? null,
+                'name' => $workflow['name'] ?? '(unnamed)',
+                'unmatched_tags' => $unmatched,
+                'url' => rtrim(config('n8n.api.url'), '/').'/workflow/'.($workflow['id'] ?? ''),
+            ];
+        }
+
+        $this->orphanedWorkflows = $orphaned;
     }
 
     /**

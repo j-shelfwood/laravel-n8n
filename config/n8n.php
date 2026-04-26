@@ -28,7 +28,25 @@ return [
         'timeout' => (int) env('N8N_WORKFLOW_TIMEOUT', 10),
         'retry_attempts' => 3,
         'retry_delay' => 5,
+        // TTL in seconds for the cached workflow list. Every DispatchN8nWebhook
+        // job refetches the entire workflow set to filter by tag — caching
+        // collapses N events × M workflows down to a single fetch per TTL
+        // window. Set to 0 to disable.
+        'cache_ttl' => (int) env('N8N_WORKFLOWS_CACHE_TTL', 60),
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Tag Prefix
+    |--------------------------------------------------------------------------
+    |
+    | Default tag prefix for events using HasN8nTrigger. Set to an env-derived
+    | value (e.g. `staging:` / `prod:`) to discriminate workflows on a single
+    | shared n8n instance. Tags emitted look like `<prefix><kebab-event-name>`.
+    |
+    */
+
+    'tag_prefix' => env('N8N_TAG_PREFIX', 'app:'),
 
     /*
     |--------------------------------------------------------------------------

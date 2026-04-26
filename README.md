@@ -123,13 +123,39 @@ return [
         'timeout' => (int) env('N8N_WORKFLOW_TIMEOUT', 10),
         'retry_attempts' => 3,
         'retry_delay' => 5,
+        // Cache TTL for the workflow list (seconds). Every event dispatch
+        // would otherwise refetch the full workflow set. 0 disables.
+        'cache_ttl' => (int) env('N8N_WORKFLOWS_CACHE_TTL', 60),
     ],
+    // Tag prefix for auto-generated event tags. Override per environment to
+    // discriminate workflows on a single shared n8n (`staging:`, `prod:`).
+    'tag_prefix' => env('N8N_TAG_PREFIX', 'app:'),
     // Directories scanned by the Filament status page
     'event_directories' => [
         'app/Events',
     ],
 ];
 ```
+
+### Domain-driven layouts
+
+If your application stores events outside `app/` (e.g. a `src/Domain/*/Events`
+layout under a `Domain\` PSR-4 root), override `event_directories`:
+
+```php
+'event_directories' => [
+    'src/Domain/*/Events',
+],
+```
+
+The status page resolves class names from `composer.json` PSR-4, so any
+namespace mapped there works — no extra registration needed.
+
+### Multi-environment tag separation
+
+Two apps sharing one n8n? Set `N8N_TAG_PREFIX=staging:` on staging and
+`N8N_TAG_PREFIX=prod:` on production. Tag your workflows accordingly and the
+two streams stay isolated without duplicated workflows.
 
 ## Graceful degradation
 

@@ -58,3 +58,26 @@ test('default toArray from trait returns empty array', function () {
 
     expect($event->toArray())->toBe([]);
 });
+
+test('tag prefix is configurable via n8n.tag_prefix', function () {
+    config(['n8n.tag_prefix' => 'staging:']);
+
+    $event = new TestEvent('hi', 1);
+
+    expect($event->getN8nTags())->toBe(['staging:test-event']);
+});
+
+test('tag prefix override applies to static generator too', function () {
+    config(['n8n.tag_prefix' => 'prod:']);
+
+    expect(HasN8nTrigger::generateDefaultN8nTagsForClass(TestEvent::class))
+        ->toBe(['prod:test-event']);
+});
+
+test('tag prefix falls back to app: when config is missing', function () {
+    config(['n8n.tag_prefix' => null]);
+
+    $event = new TestEvent('hi', 1);
+
+    expect($event->getN8nTags())->toBe(['app:test-event']);
+});
